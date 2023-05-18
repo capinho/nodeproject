@@ -5,6 +5,23 @@ CREATE TABLE IF NOT EXISTS rights (
   description TEXT
 );
 
+-- Create the users table
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  firstName VARCHAR(255) NOT NULL,
+  lastName VARCHAR(255) NOT NULL,
+  login VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  birthDate DATE NOT NULL
+);
+
+-- Create the user_rights table for many-to-many relationship
+CREATE TABLE IF NOT EXISTS user_rights (
+  userId INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  rightId INTEGER REFERENCES rights(id) ON DELETE CASCADE,
+  PRIMARY KEY (userId, rightId)
+);
+
 -- Insert the rights data
 INSERT INTO rights (name, description)
 VALUES
@@ -28,3 +45,12 @@ VALUES
   ('trade:update:all', 'Accepter ou refuser un échange que n’importe quel Dresseur a reçu'),
   ('logs:read', 'Récupérer les logs de l’application');
 
+-- Insert the user data
+INSERT INTO users (firstName, lastName, login, password, birthDate)
+VALUES ('Leo', 'Pokemaniac', 'leopkmn', 'cynthia', '1999-09-08');
+
+-- Insert the user's rights
+INSERT INTO user_rights (userId, rightId)
+SELECT u.id, r.id
+FROM users AS u
+CROSS JOIN rights AS r;
