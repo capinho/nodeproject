@@ -3,7 +3,7 @@ import database from '../config/database';
 
 const AccessToken = database.define('AccessToken', {
   token: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(2048),
     allowNull: false,
     unique: true,
   },

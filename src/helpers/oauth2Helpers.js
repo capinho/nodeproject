@@ -3,11 +3,12 @@ import jwt from 'jsonwebtoken';
 import AuthorizationCode from '../models/authorizationcode';
 import AccessToken from '../models/accesstoken';
 import RefreshToken from '../models/refreshtoken';
+import User from '../models/user';
 
 export const generateAuthorizationCode = async (req, res) => {
   const { clientId, redirectUri } = req.query;
-  const userId = req.user.id; // Assuming you have the user information in the request
-
+  const userId = "1"; // Assuming you have the user information in the request
+  // const userId = req.user.id; // Assuming you have the user information in the request
   const code = uuidv4(); // Generate a unique authorization code
 
   try {
@@ -17,7 +18,7 @@ export const generateAuthorizationCode = async (req, res) => {
       clientId,
       redirectUri,
     });
-
+    // res.json({ "code": code, "userId": userId, "clientId": clientId, "redirectUri": redirectUri });
     res.redirect(`${redirectUri}?code=${code}`);
   } catch (error) {
     console.error('Error generating authorization code', error);
@@ -54,8 +55,8 @@ export const generateToken = async (req, res) => {
 };
 
 export const generateAccessToken = (userId) => {
-    const secretKey = '12456'; // Replace with your own secret key
-    const expiresIn = '1h'; // Set the expiration time for the access token
+    const secretKey = '12456'; 
+    const expiresIn = '1h'; 
   
     const accessToken = jwt.sign({ userId }, secretKey, { expiresIn });
   
@@ -69,8 +70,8 @@ export const generateAccessToken = (userId) => {
   };
   
 export const generateRefreshToken = (userId) => {
-    const secretKey = '12456'; // Replace with your own secret key
-    const expiresIn = '30d'; // Set the expiration time for the refresh token
+    const secretKey = '12456'; 
+    const expiresIn = '30d'; 
   
     const refreshToken = jwt.sign({ userId }, secretKey, { expiresIn });
   
