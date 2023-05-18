@@ -18,7 +18,8 @@ Right.init(
   {
     sequelize: database,
     modelName: 'Right',
-  }
+  },
 );
 
 export default Right;
+

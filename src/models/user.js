@@ -43,7 +43,9 @@ const User = database.define('User', {
 });
 
 // Define the association between User and Right
-User.belongsTo(Right, { foreignKey: 'rightId' });
+User.belongsToMany(Right, { through: 'UserRight' });
+Right.belongsToMany(User, { through: 'UserRight' });
+
 
 // Define the many-to-many association between User and Pokemon
 User.belongsToMany(Pokemon, { through: 'UserPokemon' });
