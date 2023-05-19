@@ -1,4 +1,6 @@
 import User from '../models/user';
+import Right from '../models/right';
+import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 import { generateAccessToken } from '../helpers/oauth2Helpers';
 
@@ -6,12 +8,6 @@ import { generateAccessToken } from '../helpers/oauth2Helpers';
 async function createUser(req, res) {
   try {
     const { firstName, lastName, login, password, birthDate, rights } = req.body;
-
-    // Vérifier si l'utilisateur actuel a le droit "users:create"
-    const currentUser = req.user;
-    if (!currentUser || !currentUser.rights.includes('users:create')) {
-      return res.status(403).json({ error: 'Unauthorized access' });
-    }
 
     // Vérifier si l'utilisateur avec le même nom d'utilisateur existe déjà
     const existingUser = await User.findOne({ where: { login } });
@@ -28,11 +24,16 @@ async function createUser(req, res) {
       login,
       password: hashedPassword,
       birthDate,
-      rights,
     });
 
+    // Associer les droits spécifiés à l'utilisateur nouvellement créé
+    if (Array.isArray(rights) && rights.length > 0) {
+      const createdRights = await Right.findAll({ where: { name: rights } });
+      await newUser.addRights(createdRights);
+    }
+
     // Générer le jeton d'accès pour le nouvel utilisateur créé
-    const accessToken = generateAccessToken(newUser);
+    const accessToken = generateAccessToken(newUser.id);
 
     res.json({ user: newUser, access_token: accessToken });
   } catch (error) {
@@ -41,9 +42,9 @@ async function createUser(req, res) {
   }
 }
 
-async function register(req, res) {
+export async function register(req, res) {
   try {
-    const { firstName, lastName, login, password, birthDate, rights } = req.body;
+    const { firstName, lastName, login, password, birthDate } = req.body;
 
     const existingUser = await User.findOne({ where: { login } });
     if (existingUser) {
@@ -59,13 +60,39 @@ async function register(req, res) {
       login,
       password: hashedPassword,
       birthDate,
-      rights,
     });
 
-    // Generate access token for the newly registered user
-    const accessToken = generateAccessToken(newUser);
+    // Fetch the necessary rights
+    const readRights = await Right.findAll({
+      where: {
+        name: {
+          [Op.like]: '%:read',
+          [Op.notLike]: 'logs:read',
+        },
+      },
+    });
 
-    res.json({ user: newUser, access_token: accessToken });
+    const manipulateRights = await Right.findAll({
+      where: {
+        name: {
+          [Op.in]: [
+            'users:update:self',
+            'users:delete:self',
+            'pokemons:create:self',
+            'pokemons:update:self',
+            'pokemons:delete:self',
+            'trade:create:self',
+            'trade:update:self',
+          ],
+        },
+      },
+    });
+
+    // Associate the rights with the new user
+    await newUser.addRights(readRights);
+    await newUser.addRights(manipulateRights);
+
+    res.json({ user: newUser });
   } catch (error) {
     console.error('Error creating user', error);
     res.status(500).json({ error: 'Error creating user' });
@@ -81,6 +108,7 @@ async function getUsers(req, res) {
     const { count, rows: users } = await User.findAndCountAll({
       offset,
       limit,
+      attributes: { exclude: ['password', 'createdAt', 'updatedAt'] }, // Exclure les champs spécifiés
     });
 
     res.json({
@@ -95,12 +123,13 @@ async function getUsers(req, res) {
   }
 }
 
+
 async function getUser(req, res) {
   try {
     const { userId } = req.params;
 
     const user = await User.findByPk(userId, {
-      include: 'pokemons', // Include the associated pokemons
+      attributes: { exclude: ['password', 'createdAt', 'updatedAt'] },
     });
 
     if (!user) {
@@ -114,65 +143,12 @@ async function getUser(req, res) {
   }
 }
 
-// Update the updateUser method to handle the association with pokemons
-async function updateUser(req, res) {
-  try {
-    const { userId } = req.params;
-    const { firstName, lastName, birthDate, pokemons } = req.body;
-
-    const user = await User.findByPk(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    user.firstName = firstName;
-    user.lastName = lastName;
-    user.birthDate = birthDate;
-    await user.save();
-
-    // Associate the selected pokemons with the user
-    await user.setPokemons(pokemons);
-
-    // Fetch the updated user including the associated pokemons
-    const updatedUser = await User.findByPk(userId, {
-      include: 'pokemons',
-    });
-
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Error updating user', error);
-    res.status(500).json({ error: 'Error updating user' });
-  }
-}
-
-async function deleteUser(req, res) {
-  try {
-    const { userId } = req.params;
-
-    const deletedUser = await User.destroy({ where: { id: userId } });
-
-    if (!deletedUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user', error);
-    res.status(500).json({ error: 'Error deleting user' });
-  }
-}
 
 async function updateUserSelf(req, res) {
   try {
-    const { userId } = req.params;
-    const { firstName, lastName, birthDate, pokemons } = req.body;
+    const { firstName, lastName, birthDate } = req.body;
+    const userId = req.user.userId;
 
-    if (req.user.id !== userId) {
-      return res.status(403).json({
-        error: 'Unauthorized access'
-      });
-    }
 
     const user = await User.findByPk(userId);
 
@@ -185,13 +161,7 @@ async function updateUserSelf(req, res) {
     user.birthDate = birthDate;
     await user.save();
 
-    // Associate the selected pokemons with the user
-    await user.setPokemons(pokemons);
-
-    // Fetch the updated user including the associated pokemons
-    const updatedUser = await User.findByPk(userId, {
-      include: 'pokemons',
-    });
+    const updatedUser = await User.findByPk(userId);
 
     res.json(updatedUser);
   } catch (error) {
@@ -203,7 +173,7 @@ async function updateUserSelf(req, res) {
 async function updateUserAll(req, res) {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, birthDate, rights, pokemons } = req.body;
+    const { firstName, lastName, birthDate } = req.body;
 
     const user = await User.findByPk(userId);
 
@@ -214,15 +184,10 @@ async function updateUserAll(req, res) {
     user.firstName = firstName;
     user.lastName = lastName;
     user.birthDate = birthDate;
-    user.rights = rights;
     await user.save();
 
-    // Associate the selected pokemons with the user
-    await user.setPokemons(pokemons);
-
-    // Fetch the updated user including the associated pokemons
     const updatedUser = await User.findByPk(userId, {
-      include: 'pokemons',
+      attributes: { exclude: ['password', 'createdAt', 'updatedAt'] },
     });
 
     res.json(updatedUser);
@@ -234,11 +199,7 @@ async function updateUserAll(req, res) {
 
 async function deleteUserSelf(req, res) {
   try {
-    const { userId } = req.params;
-
-    if (req.user.id !== parseInt(userId)) {
-      return res.status(403).json({ error: "You are not authorized to delete this user" });
-    }
+    const userId = req.user.userId;
 
     const deletedUser = await User.destroy({ where: { id: userId } });
 
@@ -276,8 +237,6 @@ const UserController = {
   register,
   getUsers,
   getUser,
-  updateUser,
-  deleteUser,
   updateUserSelf,
   updateUserAll,
   deleteUserSelf,

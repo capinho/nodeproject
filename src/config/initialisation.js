@@ -36,21 +36,23 @@ export async function initializeDatabase() {
       lastName: 'Pokemaniac',
       login: 'leopkmn',
       password: 'cynthia',
-      birthDate: new Date(1999, 9, 8), // 
+      birthDate: new Date(1999, 9, 8),
     };
-    
-    // Find all rights and assign them to the administrator user    
-    const findrights = await Right.findAll();
-    adminUser.rights = findrights;
-
-    await User.create(adminUser, { include: [Right] });
 
     // Create the rights in the database
     await Right.bulkCreate(rights);
 
+    // Create the administrator user with assigned rights
+    const createdUser = await User.create(adminUser, { include: [Right] });
+
+    // Get the created rights
+    const createdRights = await Right.findAll();
+
+    // Manually create the UserRight associations
+    await createdUser.addRights(createdRights);
+    
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database', error);
   }
 }
-

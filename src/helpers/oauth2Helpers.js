@@ -18,8 +18,8 @@ export const generateAuthorizationCode = async (req, res) => {
       clientId,
       redirectUri,
     });
-    // res.json({ "code": code, "userId": userId, "clientId": clientId, "redirectUri": redirectUri });
-    res.redirect(`${redirectUri}?code=${code}`);
+    // res.redirect(`${redirectUri}?code=${code}`);
+    res.json({ code , redirectUri});
   } catch (error) {
     console.error('Error generating authorization code', error);
     res.status(500).json({ error: 'Error generating authorization code' });
@@ -27,7 +27,7 @@ export const generateAuthorizationCode = async (req, res) => {
 };
 
 export const generateToken = async (req, res) => {
-  const { code, clientId, clientSecret, redirectUri } = req.body;
+  const { code, clientId, clientSecret, redirectUri, scopes } = req.body;
 
   try {
     const authorizationCode = await AuthorizationCode.findOne({
@@ -42,9 +42,7 @@ export const generateToken = async (req, res) => {
       return res.status(401).json({ error: 'Invalid authorization code' });
     }
 
-    // Here you can verify clientSecret and additional checks if required
-
-    const accessToken = generateAccessToken(authorizationCode.userId);
+    const accessToken = generateAccessToken(authorizationCode.userId, scopes);
     const refreshToken = generateRefreshToken(authorizationCode.userId);
 
     res.json({ access_token: accessToken, refresh_token: refreshToken });
@@ -54,24 +52,24 @@ export const generateToken = async (req, res) => {
   }
 };
 
-export const generateAccessToken = (userId) => {
-    const secretKey = '12456'; 
-    const expiresIn = '1h'; 
-  
-    const accessToken = jwt.sign({ userId }, secretKey, { expiresIn });
-  
-    // Save the access token in the database (optional)
-    AccessToken.create({
-      token: accessToken,
-      userId,
-    });
-  
-    return accessToken;
-  };
+export const generateAccessToken = (userId, scopes) => {
+  const secretKey = '12456';
+  // expire in 10 minutes
+  const expiresIn = '10m';
+
+  const accessToken = jwt.sign({ userId, scopes }, secretKey, { expiresIn });
+
+  AccessToken.create({
+    token: accessToken,
+    userId: userId, 
+  });
+
+  return accessToken;
+};
   
 export const generateRefreshToken = (userId) => {
     const secretKey = '12456'; 
-    const expiresIn = '30d'; 
+    const expiresIn = '2h'; 
   
     const refreshToken = jwt.sign({ userId }, secretKey, { expiresIn });
   

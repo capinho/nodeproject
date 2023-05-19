@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import database from '../config/database';
+import User from './user';
 
 const Pokemon = database.define('Pokemon', {
   id: {
@@ -36,5 +37,6 @@ const Pokemon = database.define('Pokemon', {
     allowNull: false,
   },
 }, {});
+
 
 export default Pokemon;

@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import database from '../config/database';
 import Right from './right';
 import Pokemon from './pokemon';
-// import Trade from './trade';
+import AccessToken from './accesstoken';
 
 const User = database.define('User', {
   id: {
@@ -32,7 +32,10 @@ const User = database.define('User', {
     type: DataTypes.DATE,
     allowNull: false,
   },
-}, {
+}, 
+{
+  sequelize: database,
+  modelName: 'User',
   hooks: {
     beforeCreate: async (user) => {
       const saltRounds = 10;
@@ -42,13 +45,14 @@ const User = database.define('User', {
   },
 });
 
+User.hasMany(AccessToken, { foreignKey: 'userId' });
+
 // Define the association between User and Right
 User.belongsToMany(Right, { through: 'UserRight' });
 Right.belongsToMany(User, { through: 'UserRight' });
 
-
 // Define the many-to-many association between User and Pokemon
-User.belongsToMany(Pokemon, { through: 'UserPokemon' });
-Pokemon.belongsToMany(User, { through: 'UserPokemon' });
+User.belongsToMany(Pokemon, { through: 'UserPokemon', as: 'pokemons' });
+Pokemon.belongsToMany(User, { through: 'UserPokemon', as: 'users' });
 
 export default User;

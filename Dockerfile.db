@@ -6,4 +6,4 @@ ENV POSTGRES_PASSWORD your_password
 ENV POSTGRES_DB your_database_name
 
 # Copy the SQL initialization script to the container
-COPY init.sql /docker-entrypoint-initdb.d/
+# COPY init.sql /docker-entrypoint-initdb.d/

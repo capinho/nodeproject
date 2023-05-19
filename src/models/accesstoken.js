@@ -13,4 +13,9 @@ const AccessToken = database.define('AccessToken', {
   },
 });
 
+AccessToken.associate = (models) => {
+  AccessToken.belongsTo(models.User, {
+    foreignKey: 'userId', 
+  });
+};
 export default AccessToken;

@@ -22,4 +22,3 @@ Right.init(
 );
 
 export default Right;
-
